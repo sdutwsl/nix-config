@@ -25,6 +25,18 @@ group {
   }
 }
 
+dns {
+  upstream {
+    alidns: 'udp://223.5.5.5:53'
+  }
+  routing {
+    request {
+      qname(suffix: imassc.song4.prism.bn765.com) -> alidns
+      fallback: asis
+    }
+  }
+}
+
 routing {
   dport(22) -> must_direct
   pname(sing-box) -> must_direct
@@ -32,6 +44,8 @@ routing {
   pname(cloudflared) -> must_direct
   pname(qbittorrent-nox, qbittorrent) -> must_direct
   dip(geoip:private) -> direct
+  # Shiny Colors: API, assets and images, including QUIC.
+  domain(suffix: imassc.song4.prism.bn765.com) -> direct
   l4proto(udp) && dport(443) -> block
   domain(googleapis.cn) -> sing_box
   domain(game-gakuen-idolmaster.jp) -> direct
