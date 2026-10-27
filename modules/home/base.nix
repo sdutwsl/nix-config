@@ -10,6 +10,9 @@
 
   programs.fish.enable = true;
   programs.bash.enable = config.targets.genericLinux.enable;
+  programs.bash.bashrcExtra = lib.mkIf config.targets.genericLinux.enable ''
+    [ -f /etc/bashrc ] && . /etc/bashrc
+  '';
   programs.bash.initExtra = lib.mkIf config.targets.genericLinux.enable ''
     if [[ $- == *i* && -t 0 && "$(${pkgs.procps}/bin/ps -o comm= -p "$PPID")" != fish ]]; then
       export SHELL=${pkgs.fish}/bin/fish
