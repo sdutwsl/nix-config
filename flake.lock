@@ -337,11 +337,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793086624,
-        "narHash": "sha256-ksNakW6uGPKm6L8N+QGTbSL6HuqIKIjkIYOZ/lU5SnY=",
+        "lastModified": 1793103402,
+        "narHash": "sha256-Kv7VkZSE4wnJcAyGNA7qkoX/qhLZOVAFf2OTb9c7Mw0=",
         "owner": "sdutwsl",
         "repo": "Muralop",
-        "rev": "18b5943f23b1570c0a2418085915bf45063c4463",
+        "rev": "1ba263ba41ae32ae06398a106d2ce81fe41a745a",
         "type": "github"
       },
       "original": {
