@@ -337,11 +337,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793066475,
-        "narHash": "sha256-XgJKnDJ1HROy2jO23SAFzYToSQ0h+mSl10Rs0hKkofs=",
+        "lastModified": 1793086624,
+        "narHash": "sha256-ksNakW6uGPKm6L8N+QGTbSL6HuqIKIjkIYOZ/lU5SnY=",
         "owner": "sdutwsl",
         "repo": "Muralop",
-        "rev": "20aed70a5fa28309d1c830d8595dfb5b79bf18cf",
+        "rev": "18b5943f23b1570c0a2418085915bf45063c4463",
         "type": "github"
       },
       "original": {
@@ -579,11 +579,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793066933,
-        "narHash": "sha256-qPC1flVR/Avpt8cxWQ7ggEpgFPkNS4lSWhdBefFzYdc=",
+        "lastModified": 1793102496,
+        "narHash": "sha256-VPSyN9wCT9zbFTQJfepkdamj/UAk+9izUTCZdqXOQas=",
         "ref": "refs/heads/main",
-        "rev": "516fcc2582ab2f088479dccb91daed63b3e2cc1e",
-        "revCount": 1,
+        "rev": "13ef11aa4c93d315312fff616e0bc48b8222da25",
+        "revCount": 2,
         "type": "git",
         "url": "ssh://git@github.com/sdutwsl/private-nix-config.git"
       },
