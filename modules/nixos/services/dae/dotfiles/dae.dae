@@ -55,5 +55,6 @@ routing {
   domain(geosite:cn) -> direct
   domain(bitbucket.org, api.bitbucket.org, bitbucket.io, bb-inf.net) -> direct
   domain(liangxin.xyz) -> direct
+  domain(suffix: tutunode.com) -> direct
   fallback: sing_box
 }
