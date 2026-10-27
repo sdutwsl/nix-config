@@ -1,0 +1,45 @@
+global {
+  tproxy_port: 12345
+  tproxy_port_protect: true
+  so_mark_from_dae: 0
+  log_level: info
+  wan_interface: auto
+  lan_interface: enp2s0,docker0,virbr0,tailscale0,wlan0
+  auto_config_kernel_parameter: true
+  dial_mode: domain++
+  tcp_check_url: 'http://cp.cloudflare.com'
+  tcp_check_http_method: HEAD
+  udp_check_dns: 'dns.google:53'
+  check_interval: 30s
+  check_tolerance: 50ms
+}
+
+node {
+  sing_box: 'socks5://127.0.0.1:7891'
+}
+
+group {
+  sing_box {
+    filter: name(sing_box)
+    policy: fixed(0)
+  }
+}
+
+routing {
+  dport(22) -> must_direct
+  pname(sing-box) -> must_direct
+  # cloudflared dials the edge by IP with a fake SNI (h2.cftunnel.com); domain++ would re-dial that name via the proxy and fail
+  pname(cloudflared) -> must_direct
+  pname(qbittorrent-nox, qbittorrent) -> must_direct
+  dip(geoip:private) -> direct
+  l4proto(udp) && dport(443) -> block
+  domain(googleapis.cn) -> sing_box
+  domain(game-gakuen-idolmaster.jp) -> direct
+  domain(suffix: gamerfusiontech.com, suffix: listdl.com, suffix: biligame.net) -> direct
+  domain(suffix: game-hololive-dreams.com) -> direct
+  dip(geoip:cn) -> direct
+  domain(geosite:cn) -> direct
+  domain(bitbucket.org, api.bitbucket.org, bitbucket.io, bb-inf.net) -> direct
+  domain(liangxin.xyz) -> direct
+  fallback: sing_box
+}

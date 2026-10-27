@@ -1,0 +1,4 @@
+{ config, pkgs, ...} :
+{
+  services.pass-secret-service.enable = true;
+}

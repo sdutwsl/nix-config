@@ -1,0 +1,108 @@
+{
+  "log": {
+    "level": "info",
+    "timestamp": true
+  },
+  "experimental": {
+    "cache_file": {
+      "enabled": true
+    },
+    "clash_api": {
+      "external_controller": "0.0.0.0:9090"
+    }
+  },
+  "inbounds": [
+    {
+      "type": "mixed",
+      "tag": "dae-in",
+      "listen": "127.0.0.1",
+      "listen_port": 7891
+    },
+    {
+      "type": "mixed",
+      "tag": "local-mixed",
+      "listen": "127.0.0.1",
+      "listen_port": 7890
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "selector",
+      "tag": "proxy",
+      "outbounds": [
+        "direct"
+      ],
+      "default": "direct",
+      "interrupt_exist_connections": true
+    },
+    {
+      "type": "direct",
+      "tag": "direct"
+    }
+  ],
+  "dns": {
+    "servers": [
+      {
+        "type": "tcp",
+        "tag": "local-ali",
+        "server": "223.5.5.5"
+      }
+    ],
+    "final": "local-ali",
+    "strategy": "prefer_ipv4",
+    "cache_capacity": 4096,
+    "reverse_mapping": true
+  },
+  "route": {
+    "auto_detect_interface": true,
+    "default_domain_resolver": "local-ali",
+    "rules": [
+      {
+        "port": 53,
+        "action": "hijack-dns"
+      },
+      {
+        "inbound": [
+          "dae-in",
+          "local-mixed"
+        ],
+        "action": "sniff",
+        "timeout": "1s"
+      },
+      {
+        "domain_suffix": [
+          "openai.com",
+          "chatgpt.com",
+          "oaistatic.com",
+          "oaiusercontent.com",
+          "oaistatsig.com",
+          "openaimerge.com",
+          "anthropic.com",
+          "claude.ai",
+          "claude.com",
+          "claudeusercontent.com",
+          "gemini.google.com",
+          "aistudio.google.com",
+          "generativelanguage.googleapis.com",
+          "cloudcode-pa.googleapis.com",
+          "oauth2.googleapis.com",
+          "accounts.google.com",
+          "openrouter.ai",
+          "opencode.ai",
+          "cursor.com",
+          "cursor.sh",
+          "cursorapi.com",
+          "cursor-cdn.com",
+          "githubcopilot.com",
+          "copilot-proxy.githubusercontent.com",
+          "copilot-telemetry.githubusercontent.com",
+          "origin-tracker.githubusercontent.com",
+          "challenges.cloudflare.com"
+        ],
+        "action": "route",
+        "outbound": "🐰 TW URLTest"
+      }
+    ],
+    "final": "日本 URLTest"
+  }
+}

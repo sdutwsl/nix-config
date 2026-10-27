@@ -1,0 +1,11 @@
+services:
+  lrcapi:
+    image: hisatri/lrcapi:latest
+    container_name: lrcapi
+    ports:
+      - "127.0.0.1:28883:28883"
+    volumes:
+      - ./music:/music
+    environment:
+      - API_AUTH=${LRC_API_TOKEN:-114514}
+    restart: always

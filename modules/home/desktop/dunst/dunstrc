@@ -1,0 +1,84 @@
+[global]
+### 布局 ###
+monitor = 0
+follow = none
+origin = top-right
+offset = (24, 24)
+width = 360
+height = (0, 140)
+notification_limit = 6
+
+### 字体与排版 ###
+font = Noto Sans 10
+markup = full
+format = "<b>%s</b>\n%b"
+alignment = left
+vertical_alignment = center
+word_wrap = yes
+ellipsize = middle
+ignore_newline = no
+
+### 内边距 / 圆角 ###
+padding = 12
+horizontal_padding = 12
+corner_radius = 8
+separator_height = 2
+
+### 图标 ###
+icon_position = left
+max_icon_size = 48
+icon_path = /run/current-system/sw/share/icons/hicolor/48x48/status:/run/current-system/sw/share/icons/hicolor/48x48/apps
+
+### 行为 ###
+timeout = 6
+sticky_history = yes
+history_length = 50
+
+mouse_left_click = close_current
+mouse_middle_click = do_action
+mouse_right_click = close_all
+
+### 进度条 ###
+progress_bar = true
+progress_bar_height = 8
+progress_bar_frame_width = 1
+progress_bar_min_width = 160
+
+### 边框 ###
+frame_width = 1
+separator_color = frame
+
+### 透明度（与 compositor 叠加） ###
+transparency = 8
+
+### 颜色（低饱和、偏冷） ###
+background = "#1e1e2e"
+foreground = "#cdd6f4"
+frame_color = "#313244"
+
+
+[urgency_low]
+timeout = 4
+background = "#1e1e2e"
+foreground = "#a6adc8"
+frame_color = "#45475a"
+
+[urgency_normal]
+timeout = 6
+background = "#1e1e2e"
+foreground = "#cdd6f4"
+frame_color = "#89b4fa"
+
+[urgency_critical]
+timeout = 0
+background = "#1e1e2e"
+foreground = "#f38ba8"
+frame_color = "#f38ba8"
+
+[rule-ignore-qq]
+appname = ".*QQ.*"
+ignore = yes
+
+[rule-ignore-qqq]
+appname = ".*qq.*"
+ignore = yes

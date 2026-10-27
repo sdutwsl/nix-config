@@ -1,0 +1,7 @@
+/smb-secrets
+.env
+.env.*
+!.env.example
+__pycache__
+result
+/secrets/
