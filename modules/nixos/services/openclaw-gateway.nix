@@ -44,6 +44,12 @@
         runtimePlugins = [
           # Render and inspect code changes as structured diffs.
           "diffs"
+
+          # Model provider for agents.defaults.model (deepseek/...).
+          "deepseek"
+
+          # Provider for tools.web.search.
+          "duckduckgo"
         ];
 
         systemd = {
@@ -99,6 +105,10 @@
           channels.telegram = {
             enabled = true;
             dmPolicy = "pairing";
+            # Pre-approved, so a fresh state needs no DM pairing.
+            allowFrom = [
+              "1383238887"
+            ];
             execApprovals = {
               enabled = true;
               approvers = [
