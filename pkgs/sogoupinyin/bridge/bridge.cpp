@@ -10,15 +10,20 @@
 #include <fcitx/candidatelist.h>
 #include <fcitx/userinterfacemanager.h>
 #include <fcitx-config/configuration.h>
+#include <fcitx-config/iniparser.h>
 #include <fcitx-config/option.h>
 #include <fcitx-utils/dbus/bus.h>
 #include <fcitx-utils/log.h>
 #include <fcitx-utils/misc.h>
+#include <cloudpinyin_public.h>
 #include <algorithm>
+#include <chrono>
 #include <cstdlib>
 #include <fstream>
 #include <map>
+#include <memory>
 #include <functional>
+#include <string_view>
 #include <unistd.h>
 
 using namespace fcitx;
@@ -29,24 +34,33 @@ struct Context {
     TrackableObjectReference<InputContext> reference;
     std::string path;
 };
+constexpr auto cloudSign = "\xe2\x98\x81";
 class SogouCandidate final : public CandidateWord {
 public:
-    SogouCandidate(const std::string &word, std::function<void(InputContext *)> select)
-        : CandidateWord(Text(word)), select_(std::move(select)) {}
+    SogouCandidate(const std::string &word, std::function<void(InputContext *)> select,
+                   const std::string &comment = {}, bool placeHolder = false)
+        : CandidateWord(Text(word)), select_(std::move(select)) {
+        if (!comment.empty()) setComment(Text(comment));
+        setPlaceHolder(placeHolder);
+    }
     void select(InputContext *ic) const override { select_(ic); }
 private:
     std::function<void(InputContext *)> select_;
 };
-// Fcitx 5's settings show this option as a button that runs the command, the
+// Fcitx 5's settings show SogouSettings as a button that runs the command, the
 // same way Mozc offers its configuration tool.
-class SettingsConfig final : public Configuration {
+class BridgeConfig final : public Configuration {
 public:
-    explicit SettingsConfig(std::string command)
-        : settings_(this, "SogouSettings", "搜狗输入法设置", std::move(command)) {}
+    explicit BridgeConfig(std::string command = {})
+        : settings(this, "SogouSettings", "搜狗输入法设置", std::move(command)) {}
     const char *typeName() const override { return "SogouBridgeConfig"; }
-private:
-    ExternalOption settings_;
+    ExternalOption settings;
+    // This Linux build of Sogou never sends its own cloud requests. Fcitx 5's
+    // Cloud Pinyin module supplies one candidate instead; its backend (Baidu,
+    // Google) is chosen in that module's settings.
+    Option<bool> cloud{this, "CloudPinyin", "显示云拼音候选", true};
 };
+constexpr auto configFile = "conf/sogoubridge.conf";
 
 class SogouBridge final : public InputMethodEngineV2 {
 public:
@@ -85,6 +99,7 @@ public:
             if (auto path = launcher(); !path.empty()) startProcess({path, "--settings"});
         });
         manager_->instance()->userInterfaceManager().registerAction("sogou-settings", &settingsAction_);
+        readAsIni(config_, configFile);
     }
     ~SogouBridge() override {
         shiftWatcher_.reset();
@@ -98,6 +113,7 @@ public:
 
     void activate(const InputMethodEntry &, InputContextEvent &event) override {
         active_ = event.inputContext()->watch();
+        forget();
         event.inputContext()->statusArea().addAction(StatusGroup::InputMethod, &settingsAction_);
         auto *ctx = ensure(event.inputContext());
         if (!ctx) return;
@@ -108,6 +124,7 @@ public:
     }
     void deactivate(const InputMethodEntry &, InputContextEvent &event) override {
         if (active_.get() == event.inputContext()) active_.unwatch();
+        forget();
         auto it = contexts_.find(event.inputContext());
         if (it != contexts_.end() && bus_) {
             icCall(it->second.path, "Reset").send();
@@ -118,6 +135,7 @@ public:
         event.inputContext()->updateUserInterface(UserInterfaceComponent::InputPanel);
     }
     void reset(const InputMethodEntry &, InputContextEvent &event) override {
+        forget();
         auto it = contexts_.find(event.inputContext());
         if (it != contexts_.end() && bus_) icCall(it->second.path, "Reset").send();
         event.inputContext()->inputPanel().reset();
@@ -126,6 +144,10 @@ public:
     }
     void keyEvent(const InputMethodEntry &, KeyEvent &event) override {
         active_ = event.inputContext()->watch();
+        if (!event.isRelease() && cloudKey(event)) {
+            event.filterAndAccept();
+            return;
+        }
         // Ask synchronously so that a key Sogou does not want goes back through
         // the frontend untouched. Forwarding it afterwards lost modifiers on
         // Wayland and broke shortcuts such as Ctrl+A.
@@ -143,11 +165,214 @@ public:
     }
     const Configuration *getConfigForInputMethod(const InputMethodEntry &) const override {
         auto path = launcher();
-        settingsConfig_ = std::make_unique<SettingsConfig>(path.empty() ? "" : path + " --settings");
+        settingsConfig_ = std::make_unique<BridgeConfig>(path.empty() ? "" : path + " --settings");
+        settingsConfig_->cloud.setValue(*config_.cloud);
         return settingsConfig_.get();
     }
-    void setConfigForInputMethod(const InputMethodEntry &, const RawConfig &) override {}
+    void setConfigForInputMethod(const InputMethodEntry &, const RawConfig &config) override {
+        config_.load(config, true);
+        safeSaveAsIni(config_, configFile);
+    }
 private:
+    FCITX_ADDON_DEPENDENCY_LOADER(cloudpinyin, (*manager_))
+    // The cloud request for the pinyin Sogou is composing, and its result.
+    struct Cloud {
+        std::string pinyin, prefix, word;
+        bool filled = false;
+        // A late empty or repeated result keeps its slot so labels do not shift.
+        bool keepSlot = false;
+        std::chrono::steady_clock::time_point started;
+    };
+    void forget() {
+        preedit_.clear();
+        words_.clear();
+        cloud_ = {};
+        ++cloudGeneration_;
+        cloudFocused_ = false;
+        cloudIndex_ = -1;
+    }
+    int sogouCount() const { return std::min<int>(words_.size(), 9); }
+    bool isSogouWord(std::string_view word) const {
+        for (int i = 0; i < sogouCount(); ++i) {
+            std::string_view candidate = words_[i];
+            // Sogou's candidate strings end with a space.
+            while (!candidate.empty() && candidate.back() == ' ') candidate.remove_suffix(1);
+            if (candidate == word) return true;
+        }
+        return false;
+    }
+    // Sogou's preedit is the pinyin with its own syllable separators, after any
+    // words already chosen from it: "ni'hao", or "哪吒zhi'mo" after choosing 哪吒.
+    bool splitPreedit(std::string &prefix, std::string &pinyin) const {
+        auto start = preedit_.find_last_not_of("abcdefghijklmnopqrstuvwxyz'");
+        start = start == std::string::npos ? 0 : start + 1;
+        prefix = preedit_.substr(0, start);
+        if (std::any_of(prefix.begin(), prefix.end(), [](unsigned char c) { return c < 0x80; }))
+            return false;
+        for (char c : std::string_view(preedit_).substr(start))
+            if (c != '\'') pinyin += c;
+        return !pinyin.empty();
+    }
+    // Ask Fcitx 5's Cloud Pinyin about the pinyin being composed. The result
+    // arrives later, or at once from its cache; only the latest one is used.
+    void updateCloud(InputContext *ic) {
+        auto *cloud = cloudpinyin();
+        std::string prefix, pinyin;
+        if (!cloud || !*config_.cloud || english_ || words_.empty() ||
+            ic->capabilityFlags().testAny(CapabilityFlag::PasswordOrSensitive) ||
+            !splitPreedit(prefix, pinyin)) {
+            if (!cloud_.pinyin.empty()) {
+                cloud_ = {};
+                ++cloudGeneration_;
+                cloudFocused_ = false;
+            }
+            return;
+        }
+        // Moving Sogou's focus re-segments the preedit; the pinyin stays.
+        if (pinyin == cloud_.pinyin && prefix == cloud_.prefix) return;
+        cloudFocused_ = false;
+        cloud_ = {};
+        cloud_.pinyin = pinyin;
+        cloud_.prefix = prefix;
+        cloud_.started = std::chrono::steady_clock::now();
+        const auto generation = ++cloudGeneration_;
+        requesting_ = true;
+        cloud->call<ICloudPinyin::request>(pinyin,
+            [this, generation, alive = std::weak_ptr<bool>(alive_)](const std::string &,
+                                                                    const std::string &hanzi) {
+                if (alive.expired() || generation != cloudGeneration_) return;
+                cloud_.filled = true;
+                cloud_.word = hanzi;
+                cloud_.keepSlot = (hanzi.empty() || isSogouWord(hanzi)) &&
+                    std::chrono::steady_clock::now() - cloud_.started > std::chrono::seconds(1);
+                if (requesting_) return;
+                if (auto *ic = active_.get(); ic && ic->hasFocus()) showCandidates(ic);
+            });
+        requesting_ = false;
+    }
+    bool cloudReady() const {
+        return cloud_.filled && !cloud_.word.empty() && !isSogouWord(cloud_.word);
+    }
+    void appendCloud(CommonCandidateList &list) {
+        const bool ready = cloudReady();
+        // While loading the slot shows a cloud and selects nothing.
+        list.append<SogouCandidate>(ready ? cloud_.word : cloudSign,
+            [this](InputContext *target) { commitCloud(target); },
+            ready ? cloudSign : "", cloud_.filled && !ready);
+        if (ready && std::getenv("SOGOU_TEST_TRACE"))
+            FCITX_INFO() << "Sogou cloud candidate: " << cloud_.word << " at " << cloudIndex_;
+    }
+    void showCandidates(InputContext *ic) {
+        ic->inputPanel().setPreedit(Text(preedit_));
+        const int count = sogouCount();
+        // Second place, as in Fcitx 5 Pinyin, and only on Sogou's first page.
+        const bool slot = !cloud_.pinyin.empty() && page_ == 0 &&
+            (!cloud_.filled || cloud_.keepSlot || cloudReady());
+        cloudIndex_ = slot && count > 0 ? std::min(1, count) : -1;
+        if (cloudIndex_ < 0) cloudFocused_ = false;
+        if (count == 0) {
+            ic->inputPanel().setCandidateList(nullptr);
+        } else {
+            auto list = std::make_unique<CommonCandidateList>();
+            list->setPageSize(10);
+            list->setLabels({"1.", "2.", "3.", "4.", "5.", "6.", "7.", "8.", "9.", "0."});
+            list->setLayoutHint(CandidateLayoutHint::Horizontal);
+            for (int i = 0; i < count; ++i) {
+                if (i == cloudIndex_) appendCloud(*list);
+                list->append<SogouCandidate>(words_[i], [this, i](InputContext *target) {
+                    process(target, Key(static_cast<KeySym>(FcitxKey_1 + i)), false, 0);
+                });
+            }
+            if (cloudIndex_ == count) appendCloud(*list);
+            const int cursor = cloudFocused_ ? cloudIndex_
+                : focus_ + (cloudIndex_ >= 0 && focus_ >= cloudIndex_ ? 1 : 0);
+            list->setGlobalCursorIndex(std::clamp(cursor, 0, list->totalSize() - 1));
+            ic->inputPanel().setCandidateList(std::move(list));
+        }
+        ic->updateUserInterface(UserInterfaceComponent::InputPanel);
+    }
+    void commitCloud(InputContext *ic) {
+        if (!cloud_.filled || cloud_.word.empty()) return;
+        const auto text = cloud_.prefix + cloud_.word;
+        // Drop Sogou's composition, which still holds the pinyin. Fcitx 4's
+        // Reset leaves it in place; Return would then commit the letters.
+        process(ic, Key(FcitxKey_Escape), false, 0);
+        forget();
+        ic->commitString(text);
+        ic->inputPanel().reset();
+        ic->updatePreedit();
+        ic->updateUserInterface(UserInterfaceComponent::InputPanel);
+        if (std::getenv("SOGOU_TEST_TRACE")) FCITX_INFO() << "Sogou cloud committed: " << text;
+    }
+    // Keys that act on the cloud candidate, or toggle it, instead of reaching
+    // Sogou. Sogou only knows its own candidates: labels after the cloud slot
+    // are one higher than Sogou's, and Sogou's focus waits before the slot
+    // while the cloud candidate is focused.
+    bool cloudKey(KeyEvent &event) {
+        auto *ic = event.inputContext();
+        const auto &key = event.key();
+        if (auto *cloud = cloudpinyin();
+            cloud && key.checkKeyList(cloud->call<ICloudPinyin::toggleKey>())) {
+            config_.cloud.setValue(!*config_.cloud);
+            safeSaveAsIni(config_, configFile);
+            if (*config_.cloud) cloud->call<ICloudPinyin::resetError>();
+            manager_->instance()->showCustomInputMethodInformation(
+                ic, *config_.cloud ? "云拼音已开启" : "云拼音已关闭");
+            updateCloud(ic);
+            showCandidates(ic);
+            return true;
+        }
+        if (cloudIndex_ < 0) return false;
+        const auto &config = manager_->instance()->globalConfig();
+        // Arrows pass over the slot while it is loading or only keeps its place.
+        const bool ready = cloudReady();
+        if (event.checkKeyList(config.defaultNextCandidate())) {
+            if (cloudFocused_) {
+                cloudFocused_ = false;
+                process(ic, Key(FcitxKey_Down), false, event.time());
+                if (cloudIndex_ < sogouCount()) focus_ = cloudIndex_;
+                showCandidates(ic);
+                return true;
+            }
+            if (!ready || focus_ != cloudIndex_ - 1) return false;
+            cloudFocused_ = true;
+            showCandidates(ic);
+            return true;
+        }
+        if (event.checkKeyList(config.defaultPrevCandidate())) {
+            if (cloudFocused_) {
+                cloudFocused_ = false;
+                showCandidates(ic);
+                return true;
+            }
+            if (!ready || focus_ != cloudIndex_) return false;
+            process(ic, Key(FcitxKey_Up), false, event.time());
+            focus_ = cloudIndex_ - 1;
+            cloudFocused_ = true;
+            showCandidates(ic);
+            return true;
+        }
+        if (cloudFocused_ && key.check(FcitxKey_space)) {
+            commitCloud(ic);
+            return true;
+        }
+        if (key.states().testAny(KeyStates{KeyState::Ctrl, KeyState::Alt,
+                                           KeyState::Shift, KeyState::Super}))
+            return false;
+        int index = -1;
+        if (key.sym() >= FcitxKey_1 && key.sym() <= FcitxKey_9) index = key.sym() - FcitxKey_1;
+        else if (key.sym() == FcitxKey_0) index = 9;
+        if (index < 0) return false;
+        if (index == cloudIndex_) {
+            commitCloud(ic);
+            return true;
+        }
+        if (index > cloudIndex_ && index - 1 < sogouCount()) {
+            process(ic, Key(static_cast<KeySym>(FcitxKey_1 + index - 1)), false, event.time());
+            return true;
+        }
+        return false;
+    }
     // sogou-backend records its own path here for "--settings".
     static std::string launcher() {
         std::string dir;
@@ -303,28 +528,18 @@ private:
         if (!ic || !ic->hasFocus()) return false;
         std::string preedit;
         std::vector<std::string> words;
-        int32_t focus = 0;
+        int32_t focus = 0, page = 0;
         msg >> preedit >> words >> focus;
+        // Hooks before 0.3.0 do not send the page.
+        if (msg.signature() == "sasii") msg >> page;
         if (!msg) return false;
-        ic->inputPanel().setPreedit(Text(preedit));
-        if (words.empty()) {
-            ic->inputPanel().setCandidateList(nullptr);
-        } else {
-            auto list = std::make_unique<CommonCandidateList>();
-            list->setPageSize(9);
-            list->setLabels({"1.", "2.", "3.", "4.", "5.", "6.", "7.", "8.", "9."});
-            list->setLayoutHint(CandidateLayoutHint::Horizontal);
-            for (size_t i = 0; i < words.size() && i < 9; ++i) {
-                list->append<SogouCandidate>(words[i], [this, i](InputContext *target) {
-                    KeyEvent key(target, Key(static_cast<KeySym>(FcitxKey_1 + i)));
-                    keyEvent(InputMethodEntry("sogou", "Sogou", "zh_CN", "sogoubridge"), key);
-                });
-            }
-            list->setGlobalCursorIndex(std::clamp<int>(focus, 0, list->totalSize() - 1));
-            ic->inputPanel().setCandidateList(std::move(list));
-        }
-        ic->updateUserInterface(UserInterfaceComponent::InputPanel);
-        if (std::getenv("SOGOU_TEST_TRACE")) FCITX_INFO() << "Sogou native candidates: " << words.size() << " focus " << focus;
+        preedit_ = std::move(preedit);
+        words_ = std::move(words);
+        focus_ = focus;
+        page_ = page;
+        updateCloud(ic);
+        showCandidates(ic);
+        if (std::getenv("SOGOU_TEST_TRACE")) FCITX_INFO() << "Sogou native candidates: " << words_.size() << " focus " << focus_ << " page " << page_ << " preedit " << preedit_;
         return true;
     }
     bool signal(dbus::Message &msg) {
@@ -360,13 +575,24 @@ private:
     std::unique_ptr<EventSourceTime> reconnectTimer_;
     std::unique_ptr<HandlerTableEntry<EventHandler>> shiftWatcher_;
     SimpleAction settingsAction_;
-    mutable std::unique_ptr<SettingsConfig> settingsConfig_;
+    BridgeConfig config_;
+    mutable std::unique_ptr<BridgeConfig> settingsConfig_;
     std::unique_ptr<dbus::Slot> match_;
     std::unique_ptr<dbus::Slot> candidatesMatch_, modeMatch_, ownerMatch_;
     TrackableObjectReference<InputContext> active_;
     bool english_ = false;
     std::string service_, address_;
     std::map<InputContext *, Context> contexts_;
+    // Sogou's last candidate update.
+    std::string preedit_;
+    std::vector<std::string> words_;
+    int32_t focus_ = 0, page_ = 0;
+    Cloud cloud_;
+    uint64_t cloudGeneration_ = 0;
+    bool requesting_ = false, cloudFocused_ = false;
+    // Position of the cloud slot in the shown list, or -1.
+    int cloudIndex_ = -1;
+    std::shared_ptr<bool> alive_ = std::make_shared<bool>(true);
 };
 class Factory final : public AddonFactory {
     AddonInstance *create(AddonManager *manager) override { return new SogouBridge(manager); }

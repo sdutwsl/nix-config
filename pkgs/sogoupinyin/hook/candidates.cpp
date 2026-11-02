@@ -26,15 +26,24 @@ void publish(bool clear = false) {
     static auto cand = symbol<const char *(*)(void *, unsigned)>("_ZN10t_sogouIme10GetCandStrEj");
     static auto comp = symbol<const char *(*)(void *)>("_ZN10t_sogouIme10GetCompStrEv");
     static auto info = symbol<int (*)(void *, unsigned)>("_ZN10t_sogouIme7GetInfoEj");
-    if (!getIme || !count || !cand || !comp || !info) return;
+    static auto result = symbol<const char *(*)(void *)>("_ZN10t_sogouIme12GetResultStrEv");
+    if (!getIme || !count || !cand || !comp || !info || !result) return;
     auto *ime = getIme();
     if (!ime) return;
     std::vector<std::string> words;
     // Found like the mode below: GetInfo(109) is the focused candidate on the
-    // current page, moved by Up/Down (102 is the page number).
+    // current page, moved by Up/Down; 102 is the page number, 0 for the first.
     dbus_int32_t focus = clear ? 0 : info(ime, 109);
-    const char *preedit = clear ? "" : comp(ime);
-    if (!preedit) preedit = "";
+    dbus_int32_t page = clear ? 0 : info(ime, 102);
+    // Words chosen from a longer pinyin leave the composition string, which
+    // keeps only the rest; the result string holds them until the commit, and
+    // then briefly the committed text. Found by dumping t_ImeUIInfo, where
+    // both strings live, around a choice.
+    std::string preedit;
+    if (auto *rest = clear ? nullptr : comp(ime); rest && *rest) {
+        if (auto *chosen = result(ime)) preedit = chosen;
+        preedit += rest;
+    }
     if (!clear) {
         unsigned n = std::min(count(ime), 9u);
         for (unsigned i = 0; i < n; ++i) {
@@ -51,14 +60,15 @@ void publish(bool clear = false) {
     }
     static std::string previousPreedit;
     static std::vector<std::string> previousWords;
-    static dbus_int32_t previousFocus = 0;
+    static dbus_int32_t previousFocus = 0, previousPage = 0;
     static bool initialized = false;
     if (initialized && previousPreedit == preedit && previousWords == words &&
-        previousFocus == focus)
+        previousFocus == focus && previousPage == page)
         return;
     previousPreedit = preedit;
     previousWords = words;
     previousFocus = focus;
+    previousPage = page;
     initialized = true;
     auto *bus = connection();
     if (!bus || !dbus_connection_get_is_connected(bus)) return;
@@ -66,7 +76,8 @@ void publish(bool clear = false) {
     if (!msg) return;
     DBusMessageIter iter, array;
     dbus_message_iter_init_append(msg, &iter);
-    dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &preedit);
+    const char *text = preedit.c_str();
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_STRING, &text);
     dbus_message_iter_open_container(&iter, DBUS_TYPE_ARRAY, "s", &array);
     for (auto &s : words) {
         const char *word = s.c_str();
@@ -74,6 +85,7 @@ void publish(bool clear = false) {
     }
     dbus_message_iter_close_container(&iter, &array);
     dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &focus);
+    dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32, &page);
     dbus_connection_send(bus, msg, nullptr);
     dbus_connection_flush(bus);
     dbus_message_unref(msg);
