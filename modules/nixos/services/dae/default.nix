@@ -19,6 +19,7 @@ let
     config=/run/sing-box/config.json
     clash_secret=/run/agenix/sing-box-clash-secret
     extra_config=/run/agenix/sing-box-hy-nodes
+    content_file=/run/agenix/sing-box-subscription-content
     secret_file=
 
     for candidate in /run/agenix/sing-box-subscription-url /etc/sing-box/subscription-url; do
@@ -28,7 +29,7 @@ let
       fi
     done
 
-    if [ -z "$secret_file" ] && [ ! -s "$extra_config" ]; then
+    if [ -z "$secret_file" ] && [ ! -s "$extra_config" ] && [ ! -s "$content_file" ]; then
       ${pkgs.coreutils}/bin/install -m 0600 -o sing-box -g sing-box ${singBoxBaseConfig} "$config"
     else
       tmp=$(${pkgs.coreutils}/bin/mktemp /run/sing-box/config.json.XXXXXX)
@@ -43,6 +44,9 @@ let
       )
       if [ -n "$secret_file" ]; then
         args+=(--url-file "$secret_file")
+      fi
+      if [ -s "$content_file" ]; then
+        args+=(--content-file "$content_file")
       fi
       if [ -s "$extra_config" ]; then
         args+=(--extra-config-file "$extra_config")
@@ -94,6 +98,14 @@ in
     age.secrets.sing-box-clash-secret = {
       file = inputs.privateConfig.lib.secretFile "sing-box-clash-secret";
       path = "/run/agenix/sing-box-clash-secret";
+      owner = "root";
+      group = "root";
+      mode = "0400";
+    };
+
+    age.secrets.sing-box-subscription-content = {
+      file = inputs.privateConfig.lib.secretFile "sing-box-subscription-content";
+      path = "/run/agenix/sing-box-subscription-content";
       owner = "root";
       group = "root";
       mode = "0400";

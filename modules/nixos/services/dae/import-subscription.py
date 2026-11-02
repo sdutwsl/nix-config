@@ -20,7 +20,7 @@ URLTEST_GROUPS = [
     ("🐰 TW URLTest", "🐰 ", " TW "),
 ]
 URLTEST_URL = "https://www.gstatic.com/generate_204"
-SUBSCRIPTION_ICONS = ("❤️", "🐰")
+SUBSCRIPTION_ICONS = ("❤️", "🐰", "🐱")
 
 
 def read_subscription(args):
@@ -29,6 +29,8 @@ def read_subscription(args):
     elif args.url_file:
         urls = [line.strip() for line in Path(args.url_file).read_text().splitlines()
                 if line.strip() and not line.lstrip().startswith("#")]
+    elif args.content_file:
+        urls = []
     else:
         yield "", sys.stdin.read()
         return
@@ -38,6 +40,9 @@ def read_subscription(args):
             yield icon, read_subscription_url(url)
         except Exception as exc:
             print(f"Failed to fetch subscription {url}: {exc}", file=sys.stderr)
+    for index, path in enumerate(args.content_file, len(urls)):
+        icon = SUBSCRIPTION_ICONS[index] if index < len(SUBSCRIPTION_ICONS) else ""
+        yield icon, path.read_text()
 
 
 def read_subscription_url(url):
@@ -53,7 +58,7 @@ def decode_subscription(text):
     if re.search(r"^proxies:", text, re.MULTILINE):
         return text
     compact = re.sub(r"\s+", "", text)
-    if compact.startswith(("vless://", "hysteria2://", "hy2://", "ss://")):
+    if compact.startswith(("vless://", "vmess://", "trojan://", "hysteria2://", "hy2://", "ss://")):
         return text
     padding = "=" * (-len(compact) % 4)
     return base64.b64decode(compact + padding).decode()
@@ -133,6 +138,61 @@ def parse_vless(link, seen):
         outbound["transport"] = transport
 
     return outbound
+
+
+def parse_vmess(link, seen):
+    encoded = link[len("vmess://"):]
+    node = json.loads(base64.b64decode(encoded + "=" * (-len(encoded) % 4)).decode())
+    server = node.get("add")
+    port = int(node.get("port") or 0)
+    if not server or not port or server in {"127.0.0.1", "localhost"}:
+        return None
+
+    outbound = {
+        "type": "vmess",
+        "tag": unique_tag(node.get("ps", ""), seen),
+        "server": server,
+        "server_port": port,
+        "uuid": node["id"],
+        "security": node.get("scy") or "auto",
+        "alter_id": int(node.get("aid") or 0),
+    }
+    if node.get("tls") == "tls":
+        outbound["tls"] = {
+            "enabled": True,
+            "server_name": node.get("sni") or node.get("host") or server,
+        }
+    if node.get("net") == "ws":
+        transport = {
+            "type": "ws",
+            "path": node.get("path") or "/",
+        }
+        if node.get("host"):
+            transport["headers"] = {"Host": node["host"]}
+        outbound["transport"] = transport
+    return outbound
+
+
+def parse_trojan(link, seen):
+    parsed = urlparse(link)
+    query = parse_qs(parsed.query)
+    server = parsed.hostname
+    port = parsed.port
+    if not server or not port or server in {"127.0.0.1", "localhost"}:
+        return None
+
+    return {
+        "type": "trojan",
+        "tag": unique_tag(unquote(parsed.fragment), seen),
+        "server": server,
+        "server_port": port,
+        "password": unquote(parsed.username),
+        "tls": {
+            "enabled": True,
+            "server_name": first(query, "sni") or first(query, "peer") or server,
+            "insecure": first(query, "allowInsecure") == "1",
+        },
+    }
 
 
 def parse_hysteria2(link, seen):
@@ -291,6 +351,10 @@ def parse_links(subscription):
             continue
         if link.startswith("vless://"):
             outbound = parse_vless(link, seen)
+        elif link.startswith("vmess://"):
+            outbound = parse_vmess(link, seen)
+        elif link.startswith("trojan://"):
+            outbound = parse_trojan(link, seen)
         elif link.startswith(("hysteria2://", "hy2://")):
             outbound = parse_hysteria2(link, seen)
         elif link.startswith("ss://"):
@@ -338,7 +402,7 @@ def load_extra_config(path):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Import VLESS/Hysteria2/Shadowsocks subscription links into sing-box.json."
+        description="Import VLESS/VMess/Trojan/Hysteria2/Shadowsocks subscription links into sing-box.json."
     )
     parser.add_argument(
         "--url",
@@ -347,6 +411,13 @@ def main():
     parser.add_argument(
         "--url-file",
         help="Read subscription URLs from this file, one per line, and download them.",
+    )
+    parser.add_argument(
+        "--content-file",
+        action="append",
+        default=[],
+        type=Path,
+        help="Read subscription content from this file instead of downloading it.",
     )
     parser.add_argument(
         "--base-config",
@@ -370,7 +441,7 @@ def main():
 
     imported = []
     detours = []
-    if args.url or args.url_file or not args.extra_config_file:
+    if args.url or args.url_file or args.content_file or not args.extra_config_file:
         seen = {"proxy", "direct"}
         for icon, content in read_subscription(args):
             try:

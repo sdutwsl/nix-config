@@ -626,11 +626,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793102496,
-        "narHash": "sha256-VPSyN9wCT9zbFTQJfepkdamj/UAk+9izUTCZdqXOQas=",
+        "lastModified": 1793610151,
+        "narHash": "sha256-kEP9m263vH+5GGB8Lwptb67QkU6Ypy7kopU91RNfzps=",
         "ref": "refs/heads/main",
-        "rev": "13ef11aa4c93d315312fff616e0bc48b8222da25",
-        "revCount": 2,
+        "rev": "724f148538136e2ba8786b13630b13761600daa5",
+        "revCount": 3,
         "type": "git",
         "url": "ssh://git@github.com/sdutwsl/private-nix-config.git"
       },
