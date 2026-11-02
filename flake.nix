@@ -45,12 +45,7 @@
       inputs.nixpkgs.follows = "nixpkgs-stable";
     };
 
-    nix-openclaw = {
-      url = "github:openclaw/nix-openclaw";
-      inputs.nixpkgs.follows = "nixpkgs-stable";
-      inputs.home-manager.follows = "home-manager-stable";
-      inputs.nix-openclaw-tools.inputs.nixpkgs.follows = "nixpkgs-stable";
-    };
+    nix-openclaw.url = "github:openclaw/nix-openclaw";
 
     quickshell-config = {
       url = "git+ssh://git@github.com/sdutwsl/quickshell.git";
@@ -148,13 +143,7 @@
           inputs.daeuniverse.nixosModules.dae
           inputs.daeuniverse.nixosModules.daed
           {
-            nixpkgs.overlays = [
-              (final: prev:
-                builtins.removeAttrs
-                  (inputs.nix-openclaw.overlays.default final prev)
-                  [ "pnpm_11" ]
-              )
-            ];
+            nixpkgs.overlays = [ inputs.nix-openclaw.overlays.default ];
           }
         ];
       });
