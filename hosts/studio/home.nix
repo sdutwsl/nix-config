@@ -143,6 +143,6 @@
     # ../../modules/home/desktop/dunst
     ../../modules/home/desktop/copyq
     ../../modules/home/terminal/kitty.nix
-    ../../modules/home/services/rime-frost.nix
+    # ../../modules/home/services/rime-frost.nix
   ];
 }

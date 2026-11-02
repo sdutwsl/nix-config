@@ -65,12 +65,13 @@ in
     type = "fcitx5";
 
     fcitx5.addons = with pkgs; [
-      fcitx5-rime
       qt6Packages.fcitx5-configtool
       qt6Packages.fcitx5-chinese-addons
       fcitx5-mozc
       fcitx5-gtk
-    ];
+    ]
+    # office uses Sogou (programs/sogoupinyin.nix) instead of Rime.
+    ++ lib.optional (config.networking.hostName != "office") fcitx5-rime;
   };
 
   environment.systemPackages = [

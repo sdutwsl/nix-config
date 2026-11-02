@@ -16,6 +16,7 @@
     ./hardware-configuration.nix
     ../../modules/nixos/programs/bash.nix
     ../../modules/nixos/programs/fish.nix
+    ../../modules/nixos/programs/sogoupinyin.nix
     ../../modules/nixos/services/dae
     ../../modules/nixos/services/local-mcp.nix
   ];

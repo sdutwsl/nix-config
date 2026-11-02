@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.16)
+project(sogou-ui-hook LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 17)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(DBUS REQUIRED IMPORTED_TARGET dbus-1)
+add_library(sogou-ui-hook SHARED candidates.cpp)
+target_link_libraries(sogou-ui-hook PRIVATE PkgConfig::DBUS ${CMAKE_DL_LIBS})
+install(TARGETS sogou-ui-hook DESTINATION lib)
