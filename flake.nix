@@ -73,6 +73,10 @@
       url = "github:sdutwsl/Muralop";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    soundred = {
+      url = "git+ssh://git@github.com/sdutwsl/SoundRed.git";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs@{ nixpkgs, home-manager, ... }:

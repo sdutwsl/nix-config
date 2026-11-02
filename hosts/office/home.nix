@@ -7,6 +7,7 @@
 {
   home.packages = with pkgs; [
     home-manager
+    inputs.soundred.packages.${pkgs.stdenv.hostPlatform.system}.default
 
     qqmusic
     google-chrome
