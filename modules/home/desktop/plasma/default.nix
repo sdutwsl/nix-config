@@ -244,6 +244,10 @@
             value = true;
             apply = "force";
           };
+          desktops = {
+            value = "";
+            apply = "force";
+          };
         };
       }
 
