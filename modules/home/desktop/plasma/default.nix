@@ -187,14 +187,6 @@
             value = true;
             apply = "force";
           };
-          opacityactive = {
-            value = 80;
-            apply = "force";
-          };
-          opacityinactive = {
-            value = 80;
-            apply = "force";
-          };
           skiptaskbar = {
             value = true;
             apply = "force";
@@ -216,28 +208,6 @@
           noborder = {
             value = true;
             apply = "initially";
-          };
-        };
-      }
-
-      # [VSCode]
-      {
-        description = "VSCode";
-        match = {
-          window-class = {
-            value = "code";
-            type = "exact";
-            match-whole = false;
-          };
-        };
-        apply = {
-          opacityactive = {
-            value = 85;
-            apply = "force";
-          };
-          opacityinactive = {
-            value = 85;
-            apply = "force";
           };
         };
       }
@@ -266,70 +236,12 @@
             value = true;
             apply = "force";
           };
-          opacityactive = {
-            value = 70;
-            apply = "force";
-          };
-          opacityinactive = {
-            value = 62;
-            apply = "force";
-          };
           skipswitcher = {
             value = true;
             apply = "force";
           };
           skiptaskbar = {
             value = true;
-            apply = "force";
-          };
-        };
-      }
-
-      # [Window settings for calibre-ebook-viewer]
-      {
-        description = "Window settings for calibre-ebook-viewer";
-        match = {
-          window-class = {
-            value = "calibre-ebook-viewer";
-            type = "substring";
-            match-whole = true;
-          };
-          window-types = [ "normal" ];
-        };
-        apply = {
-          opacityactive = {
-            value = 88;
-            apply = "force";
-          };
-          opacityinactive = {
-            value = 87;
-            apply = "force";
-          };
-        };
-      }
-
-      # [Window settings for kitty]
-      {
-        description = "Window settings for kitty";
-        match = {
-          window-class = {
-            value = "kitty";
-            type = "exact";
-            match-whole = false;
-          };
-          title = {
-            value = "~";
-            type = "exact";
-          };
-          window-types = [ "normal" ];
-        };
-        apply = {
-          opacityactive = {
-            value = 80;
-            apply = "force";
-          };
-          opacityinactive = {
-            value = 80;
             apply = "force";
           };
         };
@@ -364,32 +276,6 @@
           };
           skiptaskbar = {
             value = true;
-            apply = "force";
-          };
-        };
-      }
-
-      # [spotifymini]
-      {
-        description = "spotifymini";
-        match = {
-          window-class = {
-            value = "Chromium-browser";
-            type = "exact";
-            match-whole = false;
-          };
-          window-role = {
-            value = "pop-up";
-            type = "exact";
-          };
-        };
-        apply = {
-          opacityactive = {
-            value = 80;
-            apply = "force";
-          };
-          opacityinactive = {
-            value = 80;
             apply = "force";
           };
         };
