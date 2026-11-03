@@ -68,41 +68,8 @@
         ],
         "action": "sniff",
         "timeout": "1s"
-      },
-      {
-        "domain_suffix": [
-          "openai.com",
-          "chatgpt.com",
-          "oaistatic.com",
-          "oaiusercontent.com",
-          "oaistatsig.com",
-          "openaimerge.com",
-          "anthropic.com",
-          "claude.ai",
-          "claude.com",
-          "claudeusercontent.com",
-          "gemini.google.com",
-          "aistudio.google.com",
-          "generativelanguage.googleapis.com",
-          "cloudcode-pa.googleapis.com",
-          "oauth2.googleapis.com",
-          "accounts.google.com",
-          "openrouter.ai",
-          "opencode.ai",
-          "cursor.com",
-          "cursor.sh",
-          "cursorapi.com",
-          "cursor-cdn.com",
-          "githubcopilot.com",
-          "copilot-proxy.githubusercontent.com",
-          "copilot-telemetry.githubusercontent.com",
-          "origin-tracker.githubusercontent.com",
-          "challenges.cloudflare.com"
-        ],
-        "action": "route",
-        "outbound": "🐰 TW URLTest"
       }
     ],
-    "final": "日本 URLTest"
+    "final": "proxy"
   }
 }

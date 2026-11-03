@@ -15,12 +15,12 @@ global {
 }
 
 node {
-  sing_box: 'socks5://127.0.0.1:7891'
+  proxy: 'socks5://127.0.0.1:7891'
 }
 
 group {
-  sing_box {
-    filter: name(sing_box)
+  proxy {
+    filter: name(proxy)
     policy: fixed(0)
   }
 }
@@ -39,7 +39,7 @@ dns {
 
 routing {
   dport(22) -> must_direct
-  pname(sing-box) -> must_direct
+  pname(proxy-process) -> must_direct
   # cloudflared dials the edge by IP with a fake SNI (h2.cftunnel.com); domain++ would re-dial that name via the proxy and fail
   pname(cloudflared) -> must_direct
   pname(qbittorrent-nox, qbittorrent) -> must_direct
@@ -47,7 +47,7 @@ routing {
   # Shiny Colors: API, assets and images, including QUIC.
   domain(suffix: imassc.song4.prism.bn765.com) -> direct
   l4proto(udp) && dport(443) -> block
-  domain(googleapis.cn) -> sing_box
+  domain(googleapis.cn) -> proxy
   domain(game-gakuen-idolmaster.jp) -> direct
   domain(suffix: gamerfusiontech.com, suffix: listdl.com, suffix: biligame.net) -> direct
   domain(suffix: game-hololive-dreams.com) -> direct
@@ -56,5 +56,5 @@ routing {
   domain(bitbucket.org, api.bitbucket.org, bitbucket.io, bb-inf.net) -> direct
   domain(liangxin.xyz) -> direct
   domain(suffix: tutunode.com) -> direct
-  fallback: sing_box
+  fallback: proxy
 }

@@ -13,6 +13,7 @@
       ../../modules/nixos/services/qbittorrent-nox.nix
       ../../modules/nixos/services/uptime-kuma.nix
       ../../modules/nixos/services/dae
+      ../../modules/nixos/services/sing-box
       ../../modules/nixos/services/openclaw-gateway.nix
       ../../modules/nixos/services/local-mcp.nix
     ];

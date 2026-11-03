@@ -17,6 +17,7 @@
     ../../modules/nixos/programs/bash.nix
     ../../modules/nixos/programs/fish.nix
     ../../modules/nixos/programs/sogoupinyin.nix
+    ../../modules/nixos/programs/clash-verge.nix
     ../../modules/nixos/services/dae
     ../../modules/nixos/services/local-mcp.nix
   ];
@@ -154,11 +155,6 @@
   # programs.gnupg.agent = {
   #   enable = true;
   #   enableSSHSupport = true;
-  # };
-
-  # programs.clash-verge = {
-  #   enable = true;
-  #  autoStart = true;
   # };
 
   # programs.niri.enable = true;

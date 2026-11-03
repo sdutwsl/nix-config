@@ -12,13 +12,6 @@ import yaml
 
 
 CONFIG = Path(__file__).with_name("dotfiles") / "sing-box.json"
-URLTEST_GROUPS = [
-    ("日本 URLTest", "❤️ ", "日本专线"),
-    ("新加坡 URLTest", "❤️ ", "新加坡专线"),
-    ("🐰 SG URLTest", "🐰 ", " SG "),
-    ("🐰 JP URLTest", "🐰 ", " JP "),
-    ("🐰 TW URLTest", "🐰 ", " TW "),
-]
 URLTEST_URL = "https://www.gstatic.com/generate_204"
 SUBSCRIPTION_ICONS = ("❤️", "🐰", "🐱")
 
@@ -475,29 +468,20 @@ def main():
     generated_outbounds = preserved + imported + detours
 
     used_tags = {outbound.get("tag") for outbound in generated_outbounds}
-    urltest_tags = []
-    for group_tag, prefix, keyword in URLTEST_GROUPS:
-        group_members = [tag for tag in tags if tag.startswith(prefix) and keyword in tag]
-        if not group_members:
-            continue
-        group_tag = unique_tag(group_tag, used_tags)
-        generated_outbounds.append(
-            {
-                "type": "urltest",
-                "tag": group_tag,
-                "outbounds": group_members,
-                "url": URLTEST_URL,
-                "interval": "15s",
-                "tolerance": 50,
-            }
-        )
-        urltest_tags.append(group_tag)
-    proxy["outbounds"] = urltest_tags + tags + ["direct"]
-
-    proxy["default"] = (
-        "日本 URLTest" if "日本 URLTest" in urltest_tags
-        else extra_default if extra_default in tags else tags[0]
+    auto_tag = unique_tag("auto", used_tags)
+    generated_outbounds.append(
+        {
+            "type": "urltest",
+            "tag": auto_tag,
+            "outbounds": tags,
+            "url": URLTEST_URL,
+            "interval": "15s",
+            "tolerance": 50,
+        }
     )
+    used_tags.add(auto_tag)
+    proxy["outbounds"] = [auto_tag] + tags + ["direct"]
+    proxy["default"] = extra_default if extra_default in tags else auto_tag
 
     final_outbound = "proxy"
     route = config.setdefault("route", {})
