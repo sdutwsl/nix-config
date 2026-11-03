@@ -16,6 +16,7 @@
 #include <fcitx-utils/log.h>
 #include <fcitx-utils/misc.h>
 #include <cloudpinyin_public.h>
+#include <systemd/sd-bus.h>
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
@@ -123,24 +124,19 @@ public:
         }
     }
     void deactivate(const InputMethodEntry &, InputContextEvent &event) override {
-        if (active_.get() == event.inputContext()) active_.unwatch();
-        forget();
-        auto it = contexts_.find(event.inputContext());
-        if (it != contexts_.end() && bus_) {
-            icCall(it->second.path, "Reset").send();
-            icCall(it->second.path, "FocusOut").send();
-        }
-        event.inputContext()->inputPanel().reset();
-        event.inputContext()->updatePreedit();
-        event.inputContext()->updateUserInterface(UserInterfaceComponent::InputPanel);
+        auto *ic = event.inputContext();
+        if (active_.get() == ic) active_.unwatch();
+        clearBackend(ic, true);
+        ic->inputPanel().reset();
+        ic->updatePreedit();
+        ic->updateUserInterface(UserInterfaceComponent::InputPanel);
     }
     void reset(const InputMethodEntry &, InputContextEvent &event) override {
-        forget();
-        auto it = contexts_.find(event.inputContext());
-        if (it != contexts_.end() && bus_) icCall(it->second.path, "Reset").send();
-        event.inputContext()->inputPanel().reset();
-        event.inputContext()->updatePreedit();
-        event.inputContext()->updateUserInterface(UserInterfaceComponent::InputPanel);
+        auto *ic = event.inputContext();
+        clearBackend(ic, false);
+        ic->inputPanel().reset();
+        ic->updatePreedit();
+        ic->updateUserInterface(UserInterfaceComponent::InputPanel);
     }
     void keyEvent(const InputMethodEntry &, KeyEvent &event) override {
         active_ = event.inputContext()->watch();
@@ -183,6 +179,17 @@ private:
         bool keepSlot = false;
         std::chrono::steady_clock::time_point started;
     };
+    struct PendingKey {
+        InputContext *ic;
+        Key key;
+        bool release;
+        bool hadPreedit;
+        bool sawCandidates = false;
+        bool sawCommit = false;
+        bool sawForward = false;
+        bool sawMode = false;
+        bool deferredClear = false;
+    };
     void forget() {
         preedit_.clear();
         words_.clear();
@@ -190,6 +197,44 @@ private:
         ++cloudGeneration_;
         cloudFocused_ = false;
         cloudIndex_ = -1;
+    }
+    sd_bus *rawBus() const {
+        if (!bus_ || std::string_view(dbus::Bus::impl()) != "sdbus") return nullptr;
+        auto *raw = static_cast<sd_bus *>(bus_->nativeHandle());
+        return raw && !sd_bus_get_current_message(raw) ? raw : nullptr;
+    }
+    void pumpBus() {
+        while (auto *raw = rawBus()) {
+            if (sd_bus_process(raw, nullptr) <= 0) break;
+        }
+    }
+    void clearBackend(InputContext *ic, bool focusOut = false) {
+        const bool composing = !preedit_.empty();
+        forget();
+        auto it = contexts_.find(ic);
+        if (it == contexts_.end() || !bus_) return;
+        if (composing) {
+            // Fcitx 4's Reset leaves Sogou's composition in place; Escape
+            // drops it so a later Return or pane switch does not commit letters.
+            suppressCandidates_ = true;
+            suppressedCandidatesSeen_ = false;
+            auto esc = icCall(it->second.path, "ProcessKeyEvent");
+            esc << uint32_t(FcitxKey_Escape) << uint32_t(0) << uint32_t(0)
+                << int32_t(0) << uint32_t(0);
+            esc.call(200000);
+            pumpBus();
+            const uint64_t deadline = now(CLOCK_MONOTONIC) + 5000;
+            while (!suppressedCandidatesSeen_) {
+                auto *raw = rawBus();
+                const uint64_t current = now(CLOCK_MONOTONIC);
+                if (!raw || current >= deadline) break;
+                if (sd_bus_wait(raw, deadline - current) < 0) break;
+                pumpBus();
+            }
+            suppressCandidates_ = false;
+        }
+        icCall(it->second.path, "Reset").send();
+        if (focusOut) icCall(it->second.path, "FocusOut").send();
     }
     int sogouCount() const { return std::min<int>(words_.size(), 9); }
     bool isSogouWord(std::string_view word) const {
@@ -263,7 +308,18 @@ private:
             FCITX_INFO() << "Sogou cloud candidate: " << cloud_.word << " at " << cloudIndex_;
     }
     void showCandidates(InputContext *ic) {
-        ic->inputPanel().setPreedit(Text(preedit_));
+        const bool inlinePreedit = ic->capabilityFlags().test(CapabilityFlag::Preedit);
+        ic->inputPanel().setPreedit(inlinePreedit ? Text() : Text(preedit_));
+        Text clientPreedit;
+        if (inlinePreedit && !preedit_.empty()) {
+            clientPreedit.append(
+                preedit_,
+                TextFormatFlags{TextFormatFlag::Underline, TextFormatFlag::DontCommit});
+            clientPreedit.setCursor(static_cast<int>(preedit_.size()));
+        }
+        const bool preeditChanged =
+            ic->inputPanel().clientPreedit().toString() != clientPreedit.toString();
+        ic->inputPanel().setClientPreedit(clientPreedit);
         const int count = sogouCount();
         // Second place, as in Fcitx 5 Pinyin, and only on Sogou's first page.
         const bool slot = !cloud_.pinyin.empty() && page_ == 0 &&
@@ -289,16 +345,18 @@ private:
             list->setGlobalCursorIndex(std::clamp(cursor, 0, list->totalSize() - 1));
             ic->inputPanel().setCandidateList(std::move(list));
         }
+        if (preeditChanged) ic->updatePreedit();
         ic->updateUserInterface(UserInterfaceComponent::InputPanel);
     }
     void commitCloud(InputContext *ic) {
-        if (!cloud_.filled || cloud_.word.empty()) return;
+        if (!cloudReady()) return;
         const auto text = cloud_.prefix + cloud_.word;
-        // Drop Sogou's composition, which still holds the pinyin. Fcitx 4's
-        // Reset leaves it in place; Return would then commit the letters.
-        process(ic, Key(FcitxKey_Escape), false, 0);
-        forget();
+        // Commit while clientPreedit is still active so clients replace the
+        // composition cleanly, then drop Sogou's composition, which still holds
+        // the pinyin. Fcitx 4's Reset leaves it in place; Return would then
+        // commit the letters.
         ic->commitString(text);
+        clearBackend(ic);
         ic->inputPanel().reset();
         ic->updatePreedit();
         ic->updateUserInterface(UserInterfaceComponent::InputPanel);
@@ -403,6 +461,14 @@ private:
         for (int attempt = 0; attempt < 2; ++attempt) {
             auto *ctx = ensure(ic);
             if (!ctx) return false;
+            PendingKey state{ic, key, release,
+                             !preedit_.empty() || !ic->inputPanel().clientPreedit().empty()};
+            struct Guard {
+                PendingKey *&slot;
+                PendingKey *previous;
+                ~Guard() { slot = previous; }
+            } guard{pending_, pending_};
+            pending_ = &state;
             auto msg = icCall(ctx->path, "ProcessKeyEvent");
             msg << uint32_t(key.sym()) << uint32_t(key.code()) << uint32_t(key.states())
                 << int32_t(release ? 1 : 0) << time;
@@ -410,7 +476,40 @@ private:
             if (!reply.isError()) {
                 int32_t handled = 0;
                 reply >> handled;
-                return reply && handled;
+                const bool accepted = reply && handled;
+                // sd_bus_call queues incoming signals without dispatching them,
+                // and Fcitx 4 emits CommitString right after ProcessKeyEvent's
+                // reply. Drain them here so Fcitx 5's ProcessKeyEventBatch
+                // delivers preedit and commits synchronously with the keystroke.
+                pumpBus();
+                const auto needMore = [&] {
+                    if (state.deferredClear && !state.sawCommit) return true;
+                    if (release &&
+                        (key.sym() == FcitxKey_Shift_L || key.sym() == FcitxKey_Shift_R) &&
+                        state.hadPreedit && !state.sawCommit)
+                        return true;
+                    if (accepted && !release && !key.isModifier() &&
+                        !state.sawCandidates && !state.sawCommit &&
+                        !state.sawForward && !state.sawMode)
+                        return true;
+                    return false;
+                };
+                const uint64_t started = now(CLOCK_MONOTONIC);
+                while (needMore()) {
+                    auto *raw = rawBus();
+                    const uint64_t budgetUs =
+                        (state.deferredClear || (release && state.hadPreedit)) ? 25000 : 5000;
+                    const uint64_t deadline = started + budgetUs;
+                    const uint64_t current = now(CLOCK_MONOTONIC);
+                    if (!raw || current >= deadline) break;
+                    if (sd_bus_wait(raw, deadline - current) < 0) break;
+                    pumpBus();
+                }
+                if (state.deferredClear) {
+                    state.deferredClear = false;
+                    showCandidates(ic);
+                }
+                return accepted;
             }
             const auto error = reply.errorName();
             // UnknownObject/Method proves that this key was not processed.
@@ -429,7 +528,9 @@ private:
         // stays active. The hook reports it so Fcitx 5 can show it.
         bool english = false;
         msg >> english;
-        if (!msg || english == english_) return false;
+        if (!msg) return false;
+        if (pending_) pending_->sawMode = true;
+        if (english == english_) return false;
         english_ = english;
         if (auto *ic = active_.get(); ic && ic->hasFocus()) {
             ic->updateUserInterface(UserInterfaceComponent::StatusArea);
@@ -524,8 +625,6 @@ private:
         return &ctx;
     }
     bool candidates(dbus::Message &msg) {
-        auto *ic = active_.get();
-        if (!ic || !ic->hasFocus()) return false;
         std::string preedit;
         std::vector<std::string> words;
         int32_t focus = 0, page = 0;
@@ -533,12 +632,35 @@ private:
         // Hooks before 0.3.0 do not send the page.
         if (msg.signature() == "sasii") msg >> page;
         if (!msg) return false;
+        if (suppressCandidates_) {
+            suppressedCandidatesSeen_ = true;
+            return true;
+        }
+        auto *ic = active_.get();
+        if (!ic || !ic->hasFocus()) return false;
+        const bool wasComposing =
+            !preedit_.empty() || !ic->inputPanel().clientPreedit().empty();
         preedit_ = std::move(preedit);
         words_ = std::move(words);
         focus_ = focus;
         page_ = page;
         updateCloud(ic);
-        showCandidates(ic);
+        if (pending_ && pending_->ic == ic && preedit_.empty() && words_.empty() &&
+            wasComposing && !pending_->sawCommit &&
+            pending_->key.sym() != FcitxKey_Escape &&
+            pending_->key.sym() != FcitxKey_BackSpace) {
+            // Candidates("", []) on org.sogou.Bridge arrives ahead of Fcitx 4's
+            // CommitString. Keep clientPreedit in place until CommitString runs
+            // so clients replace the active composition instead of ending it empty.
+            pending_->sawCandidates = true;
+            pending_->deferredClear = true;
+        } else {
+            if (pending_ && pending_->ic == ic) {
+                pending_->sawCandidates = true;
+                pending_->deferredClear = false;
+            }
+            showCandidates(ic);
+        }
         if (std::getenv("SOGOU_TEST_TRACE")) FCITX_INFO() << "Sogou native candidates: " << words_.size() << " focus " << focus_ << " page " << page_ << " preedit " << preedit_;
         return true;
     }
@@ -550,23 +672,43 @@ private:
         if (msg.member() == "CommitString") {
             std::string text; msg >> text;
             if (msg) {
+                const bool keepNewPreedit =
+                    pending_ && pending_->ic == ic && pending_->sawCandidates && !preedit_.empty();
+                if (pending_ && pending_->ic == ic) {
+                    pending_->sawCommit = true;
+                    pending_->deferredClear = false;
+                }
                 ic->commitString(text);
-                ic->inputPanel().reset();
-                ic->updatePreedit();
-                ic->updateUserInterface(UserInterfaceComponent::InputPanel);
+                if (keepNewPreedit) {
+                    showCandidates(ic);
+                } else {
+                    forget();
+                    ic->inputPanel().reset();
+                    ic->updatePreedit();
+                    ic->updateUserInterface(UserInterfaceComponent::InputPanel);
+                }
             }
         } else if (msg.member() == "UpdateFormattedPreedit") {
             std::vector<dbus::DBusStruct<std::string, int32_t>> parts;
             int32_t cursor = 0; msg >> parts >> cursor;
             if (!msg) return false;
-            Text text;
-            for (const auto &part : parts) text.append(std::get<0>(part.data()), TextFormatFlag::Underline);
-            text.setCursor(cursor);
-            ic->inputPanel().setClientPreedit(text);
-            ic->updatePreedit();
+            // Fcitx 4 only emits an empty array on IC setup/reset; ignore it so
+            // it cannot clobber the preedit reported by org.sogou.Bridge.
+            if (!parts.empty()) {
+                Text text;
+                for (const auto &part : parts)
+                    text.append(std::get<0>(part.data()),
+                                TextFormatFlags{TextFormatFlag::Underline, TextFormatFlag::DontCommit});
+                text.setCursor(cursor);
+                ic->inputPanel().setClientPreedit(text);
+                ic->updatePreedit();
+            }
         } else if (msg.member() == "ForwardKey") {
             uint32_t sym=0, state=0; int32_t type=0; msg >> sym >> state >> type;
-            if (msg) ic->forwardKey(Key(static_cast<KeySym>(sym), KeyStates(state)), type != 0);
+            if (msg) {
+                if (pending_ && pending_->ic == ic) pending_->sawForward = true;
+                ic->forwardKey(Key(static_cast<KeySym>(sym), KeyStates(state)), type != 0);
+            }
         }
         return true;
     }
@@ -592,6 +734,8 @@ private:
     bool requesting_ = false, cloudFocused_ = false;
     // Position of the cloud slot in the shown list, or -1.
     int cloudIndex_ = -1;
+    PendingKey *pending_ = nullptr;
+    bool suppressCandidates_ = false, suppressedCandidatesSeen_ = false;
     std::shared_ptr<bool> alive_ = std::make_shared<bool>(true);
 };
 class Factory final : public AddonFactory {

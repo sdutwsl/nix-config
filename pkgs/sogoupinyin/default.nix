@@ -12,11 +12,11 @@ let
   };
   bridge = pkgs.stdenv.mkDerivation {
     pname = "fcitx5-sogou-bridge";
-    version = "0.3.0";
+    version = "0.3.1";
     src = ./bridge;
     nativeBuildInputs = [ pkgs.cmake pkgs.pkg-config ];
     # Only the Cloud Pinyin module's header; the module itself is loaded at run time.
-    buildInputs = [ pkgs.fcitx5 pkgs.qt6Packages.fcitx5-chinese-addons ];
+    buildInputs = [ pkgs.fcitx5 pkgs.qt6Packages.fcitx5-chinese-addons pkgs.systemdLibs ];
   };
   # fcitx-sogoupinyin.so forks `killall -9 sogoupinyin-service` and then starts
   # a new service without waiting, so a late killall killed the new service as
