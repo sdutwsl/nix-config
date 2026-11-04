@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 
 let
   mozcIconFix = pkgs.stdenvNoCC.mkDerivation {

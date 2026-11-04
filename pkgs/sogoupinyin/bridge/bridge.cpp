@@ -122,6 +122,15 @@ public:
             contexts_.erase(event.inputContext());
             if (auto *fresh = ensure(event.inputContext())) focus(*fresh);
         }
+        // Sogou keeps its mode in the shared backend, even after FocusOut.
+        // Enter Chinese when this input method is activated again instead of
+        // inheriting English from the previous window or activation. Use
+        // Sogou's own toggle so the engine and its status stay in sync.
+        pumpBus();
+        if (english_) {
+            process(event.inputContext(), Key(FcitxKey_Shift_L), false, 0);
+            process(event.inputContext(), Key(FcitxKey_Shift_L), true, 0);
+        }
     }
     void deactivate(const InputMethodEntry &, InputContextEvent &event) override {
         auto *ic = event.inputContext();
