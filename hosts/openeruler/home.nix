@@ -32,7 +32,12 @@ in
     fd
     btop
     iperf3
+    waypipe
+    wl-clipboard
   ];
+
+  # Socket provided from office (modules/home/services/openeruler-waypipe.nix).
+  home.sessionVariables.WAYLAND_DISPLAY = "${config.home.homeDirectory}/.local/state/wayland-office";
 
   age = {
     secretsDir = "${config.home.homeDirectory}/.local/state/agenix";
