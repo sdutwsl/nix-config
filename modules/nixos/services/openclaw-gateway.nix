@@ -80,7 +80,15 @@
             };
           };
 
-          agents.defaults.model.primary = "deepseek/deepseek-v4-pro";
+          agents.defaults = {
+            model.primary = "deepseek/deepseek-v4-pro";
+            heartbeat.every = "0m";
+            thinkingDefault = "off";
+            compaction = {
+              mode = "safeguard";
+              midTurnPrecheck.enabled = true;
+            };
+          };
 
           commands.ownerAllowFrom = [
             "telegram:1383238887"
@@ -92,10 +100,20 @@
             id = "value";
           };
 
+          models.providers.deepseek.models = [
+            {
+              id = "deepseek-v4-pro";
+              name = "DeepSeek V4 Pro";
+              contextTokens = 128000;
+            }
+          ];
+
           browser = {
             enabled = true;
             executablePath = "${pkgs.google-chrome}/bin/google-chrome-stable";
           };
+
+          tools.loopDetection.enabled = true;
 
           tools.web.search = {
             enabled = true;
