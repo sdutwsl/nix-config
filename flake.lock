@@ -685,11 +685,11 @@
     "quickshell-config": {
       "flake": false,
       "locked": {
-        "lastModified": 1793755087,
-        "narHash": "sha256-3AL/P/sDYFbCBXO+uIr3RANWAL+vnEdof7dnl3XUJpM=",
+        "lastModified": 1793861108,
+        "narHash": "sha256-PLdmLGTei7HQlOK+4wapAGMjl5bq4u35hEHDDQERSKU=",
         "ref": "refs/heads/main",
-        "rev": "74dd03d0b4f987034ce9a6a826073c61c71a2a99",
-        "revCount": 106,
+        "rev": "ec519e5b7ecba63f012d052a0a5f3f1bef7a7a1e",
+        "revCount": 107,
         "type": "git",
         "url": "ssh://git@github.com/sdutwsl/quickshell.git"
       },
