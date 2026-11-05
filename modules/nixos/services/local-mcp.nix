@@ -1,12 +1,14 @@
 { config, pkgs, inputs, ... }:
 let
-  local-mcp = pkgs.python3Packages.buildPythonApplication {
+  # local-mcp requires MCP 2.x; stable still ships MCP 1.x.
+  pythonPackages = inputs.nixpkgs.legacyPackages.${pkgs.stdenv.hostPlatform.system}.python3Packages;
+  local-mcp = pythonPackages.buildPythonApplication {
     pname = "local-mcp";
     version = "0.1.0";
     pyproject = true;
     src = inputs.local-mcp;
-    build-system = [ pkgs.python3Packages.hatchling ];
-    dependencies = [ pkgs.python3Packages.mcp ];
+    build-system = [ pythonPackages.hatchling ];
+    dependencies = [ pythonPackages.mcp ];
   };
   # Public URL is the OAuth issuer, so each host advertises the domain that reaches it.
   publicUrl = {
