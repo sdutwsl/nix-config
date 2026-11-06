@@ -138,7 +138,10 @@ public:
         clearBackend(ic, true);
         ic->inputPanel().reset();
         ic->updatePreedit();
-        ic->updateUserInterface(UserInterfaceComponent::InputPanel);
+        // Flush now: destroying a context drops its queued updates, and Fcitx's
+        // focus handling only hides the group's Wayland window. D-Bus clients on
+        // Wayland draw in the X11 window, which would keep showing "搜" forever.
+        ic->updateUserInterface(UserInterfaceComponent::InputPanel, true);
     }
     void reset(const InputMethodEntry &, InputContextEvent &event) override {
         auto *ic = event.inputContext();
