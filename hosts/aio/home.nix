@@ -47,7 +47,6 @@ in
 
     zulu
     frp
-    inputs.codex-cli-nix.packages.${pkgs.stdenv.hostPlatform.system}.default
   ];
 
   # programs.obs-studio = {
@@ -74,6 +73,7 @@ in
     ../../profiles/home/core.nix
     ../../profiles/home/desktop.nix
     ../../profiles/home/development.nix
+    ../../profiles/home/ai.nix
     ../../modules/home/programs/anirss
     ../../modules/home/programs/distrobox
     ../../modules/home/games/subahibi.nix
