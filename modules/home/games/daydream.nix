@@ -76,10 +76,12 @@ let
       #
       # startup.xml 里简体中文的语言代码是 1028（zh-TW），所以用 zh_TW 而不是 zh_CN
       #
+      # 禁用 ALSA MIDI，避免 Wine 音频驱动被 Nix 去重后启动挂起。
       exec env \
         LOCALE_ARCHIVE="${pkgs.glibcLocales}/lib/locale/locale-archive" \
         LANG="zh_TW.UTF-8" \
         LC_ALL="zh_TW.UTF-8" \
+        WINEDLLOVERRIDES="winealsa.drv=" \
         wine cs2.exe
     '';
   };
