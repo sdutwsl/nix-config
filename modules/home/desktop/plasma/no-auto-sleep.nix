@@ -5,7 +5,6 @@
     dimDisplay.enable = false;
     turnOffDisplay = {
       idleTimeout = "never";
-      idleTimeoutWhenLocked = "whenLockedAndUnlocked";
     };
   });
 }
