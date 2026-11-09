@@ -8,14 +8,17 @@
     ../../profiles/nixos/desktop.nix
     ../../modules/nixos/desktop/pipewire.nix
     ../../modules/nixos/hardware/nvidia.nix
-    # Add ./hardware-configuration.nix after generating it on this host.
+    ../../modules/nixos/hardware/wake-on-lan.nix
+    ./hardware-configuration.nix
     ../../modules/nixos/programs/bash.nix
     ../../modules/nixos/programs/fish.nix
+    ../../modules/nixos/programs/sogoupinyin.nix
+    ../../modules/nixos/services/aio-smb.nix
   ];
 
   # Bootloader.
   boot.loader.systemd-boot.enable = true;
-  boot.loader.efi.canTouchEfiVariables = true;
+  boot.loader.efi.canTouchEfiVariables = false;
   networking.hostName = "studio";
 
   # Enable networking

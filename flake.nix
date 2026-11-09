@@ -129,6 +129,7 @@
 
       studio = mkHost {
         host = ./hosts/studio;
+        withAgenix = true;
         modules = [
           inputs.vscode-server.nixosModules.default
           inputs.stylix.nixosModules.stylix

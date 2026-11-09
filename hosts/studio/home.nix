@@ -119,7 +119,6 @@
     shellAliases = {
       sw = "sudo nixos-rebuild switch";
       gc = "sudo nix-collect-garbage -d";
-      yunzai = "code --folder-uri ssh://fedbot:bots/Yunzai";
     };
   };
 
@@ -133,6 +132,7 @@
     ../../modules/home/programs/qq.nix
     ../../modules/home/programs/distrobox
     ../../modules/home/desktop/plasma
+    ../../modules/home/desktop/plasma/no-auto-sleep.nix
     ../../modules/home/desktop/quickshell
     ../../modules/home/desktop/pywal
     ../../modules/home/desktop/sway
@@ -143,6 +143,7 @@
     # ../../modules/home/desktop/dunst
     ../../modules/home/desktop/copyq
     ../../modules/home/terminal/kitty.nix
+    ../../modules/home/games/daydream.nix
     # ../../modules/home/services/rime-frost.nix
   ];
 }
