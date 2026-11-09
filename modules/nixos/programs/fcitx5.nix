@@ -1,11 +1,19 @@
-{ config, lib, pkgs, ... }:
+{ config, inputs, lib, pkgs, ... }:
 
 let
+  unstable = import inputs.nixpkgs {
+    inherit (pkgs.stdenv.hostPlatform) system;
+    config.allowUnfree = true;
+  };
+  fcitx5Package = unstable.qt6Packages.fcitx5-with-addons.override {
+    inherit (config.i18n.inputMethod.fcitx5) addons;
+  };
+
   mozcIconFix = pkgs.stdenvNoCC.mkDerivation {
     pname = "fcitx5-mozc-icon-fix";
     version = "1";
 
-    src = pkgs.fcitx5-mozc;
+    src = unstable.fcitx5-mozc;
     dontUnpack = true;
 
     nativeBuildInputs = [
@@ -63,15 +71,16 @@ in
   i18n.inputMethod = {
     enable = true;
     type = "fcitx5";
+    package = lib.mkForce fcitx5Package;
 
-    fcitx5.addons = with pkgs; [
+    fcitx5.addons = with unstable; [
       qt6Packages.fcitx5-configtool
       qt6Packages.fcitx5-chinese-addons
       fcitx5-mozc
       fcitx5-gtk
     ]
-    # office uses Sogou (programs/sogoupinyin.nix) instead of Rime.
-    ++ lib.optional (config.networking.hostName != "office") fcitx5-rime;
+    # office, gala, and studio use Sogou (programs/sogoupinyin.nix) instead of Rime.
+    ++ lib.optional (!builtins.elem config.networking.hostName [ "office" "gala" "studio" ]) unstable.fcitx5-rime;
   };
 
   environment.systemPackages = [

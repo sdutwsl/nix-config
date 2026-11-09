@@ -9,8 +9,10 @@
     # required by most wayland compositors!
     modesetting.enable = true;
     powerManagement.enable = true;
+    open = true;
   };
-  virtualisation.docker.enableNvidia = true; # for nvidia-docker
+  hardware.nvidia-container-toolkit.enable = true; # for nvidia-docker
+  systemd.services.nvidia-container-toolkit-cdi-generator.unitConfig.ConditionPathExists = "/proc/driver/nvidia/version";
 
   hardware.graphics = {
     enable = true;

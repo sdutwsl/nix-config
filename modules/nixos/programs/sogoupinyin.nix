@@ -1,7 +1,11 @@
-{ pkgs, ... }:
+{ inputs, pkgs, ... }:
 
 let
-  sogou = import ../../../pkgs/sogoupinyin { inherit pkgs; };
+  unstable = import inputs.nixpkgs {
+    inherit (pkgs.stdenv.hostPlatform) system;
+    config.allowUnfree = true;
+  };
+  sogou = import ../../../pkgs/sogoupinyin { pkgs = unstable; };
 in
 {
   # Sogou Pinyin in Fcitx 5 via a sandboxed Fcitx 4 backend.
