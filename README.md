@@ -23,6 +23,7 @@
 | `aio`        | NixOS        | 家用AIO          |
 | `moki`       | NixOS        | DN42             |
 | `studio`     | NixOS        | 个人桌面         |
+| `gala`       | NixOS        | 娱乐机（游戏/视频） |
 | `ali-server` | Home Manager | 云服务器         |
 | `openEruler` | Home Manager | openEuler 开发机 |
 
@@ -48,7 +49,7 @@ nix flake update
 
 不同主机使用对应的配置名称即可。
 
-部分配置依赖私有仓库 `private-nix-config`，用于管理加密密钥、个人服务及工作环境相关内容。公开仓库保留主机配置入口，完整求值需要相应的私有仓库访问权限。
+部分配置依赖私有仓库 `private-nix-config`，完整求值需要相应的访问权限。
 
 ## 资源来源
 
@@ -68,6 +69,3 @@ Plasma、Sway 和 Pywal 使用本地 `~/Pictures/wallpaper.png`，个人壁纸�
 
 `vendor/aic8800dc-linux-patched/` 收录 AIC8800DC 无线网卡驱动，用于相关 USB 无线网卡的 Linux 内核适配。来源及修改说明见该目录下的 README。
 
----
-
-此仓库主要用于个人设备配置管理，同时公开供参考。部分配置求值依赖私有仓库，不保证可以直接用于其他设备。

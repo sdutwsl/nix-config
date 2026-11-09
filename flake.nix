@@ -137,6 +137,11 @@
         ];
       };
 
+      gala = mkHost (stable // {
+        host = ./hosts/gala;
+        withAgenix = true;
+      });
+
       aio = mkHost (stable // {
         host = ./hosts/aio;
         withAgenix = true;
