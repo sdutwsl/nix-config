@@ -18,6 +18,7 @@
     ../../modules/nixos/programs/fish.nix
     ../../modules/nixos/programs/sogoupinyin.nix
     ../../modules/nixos/programs/clash-verge.nix
+    ../../modules/nixos/programs/vmware-workstation.nix
     ../../modules/nixos/services/dae
     ../../modules/nixos/services/local-mcp.nix
   ];
