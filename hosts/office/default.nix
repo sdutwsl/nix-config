@@ -21,6 +21,7 @@
     ../../modules/nixos/programs/vmware-workstation.nix
     ../../modules/nixos/services/dae
     ../../modules/nixos/services/local-mcp.nix
+    ../../modules/nixos/services/aio-smb.nix
   ];
   dae.lanInterface = "enp2s0,docker0,virbr0,tailscale0,wlp0s20f0u4";
 

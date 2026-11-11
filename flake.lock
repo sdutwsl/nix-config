@@ -393,11 +393,11 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1793743329,
-        "narHash": "sha256-WyqkXbUMyt0Z1fndNQgWqxvK7eOW8uSPweajiGn76Yc=",
+        "lastModified": 1794276105,
+        "narHash": "sha256-cMX3gaJniHZRY5IKwzLILsK2NY6AvSii6AYR6edztqw=",
         "owner": "ryoppippi",
         "repo": "nix-claude-code",
-        "rev": "dfdc6e65fdc10844126d61c5ba6816fe82f7117a",
+        "rev": "b9a885d733483cffff8877e7816123c5f0509452",
         "type": "github"
       },
       "original": {
@@ -526,11 +526,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1793341285,
-        "narHash": "sha256-Y1CiZ4SoBUjLQyQM/pY+rS2dXD3CHLPstF0lmOc73D4=",
+        "lastModified": 1794042290,
+        "narHash": "sha256-ziZn2PvCJE5JEEpqTdxXwJpPB+L3YqoCpTAMCzyaP3U=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "1c89083e451e891152365b799595cf7790a43325",
+        "rev": "f4a03c008967841f2a0b3cb7c436fc6fc31671f6",
         "type": "github"
       },
       "original": {
@@ -643,11 +643,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1794129580,
-        "narHash": "sha256-iFXwtHc8mFM1/1FrXVaaQNqslHyRwMiAou2xjtv/BGM=",
+        "lastModified": 1794362534,
+        "narHash": "sha256-n1YIJWZTFYMZhuTQL96D+B4mYWtO0ALdof2OdplMblM=",
         "ref": "refs/heads/main",
-        "rev": "b0ba3e299e3e94f03f3d4cb97f7e682b9dbb0b1d",
-        "revCount": 5,
+        "rev": "768a3bad3ead0efd95c10e31ec9815af5509c7ab",
+        "revCount": 6,
         "type": "git",
         "url": "ssh://git@github.com/sdutwsl/private-nix-config.git"
       },
