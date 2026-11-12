@@ -16,7 +16,7 @@
     connection = {
       id = "NixWiFi";
       type = "wifi";
-      interface-name = "wlp0s20f0u4";
+      interface-name = "hotspot0";
       autoconnect = "true";
       autoconnect-priority = "100";
     };

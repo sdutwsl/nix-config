@@ -23,7 +23,7 @@
     ../../modules/nixos/services/local-mcp.nix
     ../../modules/nixos/services/aio-smb.nix
   ];
-  dae.lanInterface = "enp2s0,docker0,virbr0,tailscale0,wlp0s20f0u4";
+  dae.lanInterface = "enp2s0,docker0,virbr0,tailscale0,hotspot0";
 
   # Bootloader.
   boot.loader.systemd-boot.enable = true;
@@ -55,6 +55,12 @@
   # Enable networking
   networking.networkmanager.enable = true;
   networking.networkmanager.wifi.powersave = false;
+
+  # Keep the hotspot adapter's name stable when it is moved to another USB port.
+  systemd.network.links."10-hotspot" = {
+    matchConfig.PermanentMACAddress = "90:de:80:47:b2:72";
+    linkConfig.Name = "hotspot0";
+  };
 
   # Set your time zone.
   time.timeZone = "Asia/Shanghai";
@@ -202,11 +208,11 @@
     59011
   ];
 
-  networking.firewall.interfaces.wlp0s20f0u4.allowedUDPPorts = [
+  networking.firewall.interfaces.hotspot0.allowedUDPPorts = [
     53
     67
   ];
-  networking.firewall.interfaces.wlp0s20f0u4.allowedTCPPorts = [ 53 ];
+  networking.firewall.interfaces.hotspot0.allowedTCPPorts = [ 53 ];
   # Or disable the firewall altogether.
   # networking.firewall.enable = false;
   # networking.proxy.default = "http://172.16.26.116:7890/";
