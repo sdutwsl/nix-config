@@ -22,8 +22,8 @@
   # Use the systemd-boot EFI boot loader.
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
-  # ShiJi SSD：SATA 链路省电唤醒时卡死，导致 30s 写超时（ata2 CommWake/frozen）
-  boot.kernelParams = [ "ahci.mobile_lpm_policy=1" ];
+  # ShiJi SSD：关链路省电与 NCQ，避免唤醒卡死和 32 深度命令排队写超时（ata2 CommWake/frozen）
+  boot.kernelParams = [ "ahci.mobile_lpm_policy=1" "libata.force=2:noncq" ];
   boot.kernel.sysctl = {
     # if you use ipv4, this is all you need
     "net.ipv4.conf.all.forwarding" = true;
