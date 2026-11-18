@@ -76,6 +76,12 @@
 
   services.displayManager.sddm.enable = true;
   services.displayManager.sddm.wayland.enable = true;
+  # KRdp (Plasma 6.8) only runs inside a logged-in session, so log in automatically for headless RDP.
+  services.displayManager.autoLogin = {
+    enable = true;
+    user = "wsl";
+  };
+  services.displayManager.defaultSession = "plasma";
   services.desktopManager.plasma6.enable = true;
   programs.muralop.enable = true;
 
