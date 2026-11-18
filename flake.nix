@@ -161,7 +161,7 @@
     };
 
     homeConfigurations = {
-      "wsl@openEruler" = mkHome stable "aarch64-linux" ./hosts/openeruler/home.nix;
+      "wsl@openeruler" = mkHome stable "aarch64-linux" ./hosts/openeruler/home.nix;
       "wsl@ali-server" = mkHome stable "x86_64-linux" ./hosts/ali-server/home.nix;
     };
 

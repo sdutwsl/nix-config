@@ -25,7 +25,7 @@
 | `studio`     | NixOS        | 个人桌面         |
 | `gala`       | NixOS        | 娱乐机（游戏/视频） |
 | `ali-server` | Home Manager | 云服务器         |
-| `openEruler` | Home Manager | openEuler 开发机 |
+| `openeruler` | Home Manager | openEuler 开发机 |
 
 ## 使用
 
