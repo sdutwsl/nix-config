@@ -43,6 +43,8 @@ routing {
   # cloudflared dials the edge by IP with a fake SNI (h2.cftunnel.com); domain++ would re-dial that name via the proxy and fail
   pname(cloudflared) -> must_direct
   pname(qbittorrent-nox, qbittorrent) -> must_direct
+  # Proxied STUN/disco makes tailscaled advertise the proxy's IP as an endpoint and breaks direct paths
+  pname(tailscaled) -> must_direct
   dip(geoip:private) -> direct
   # Shiny Colors: API, assets and images, including QUIC.
   domain(suffix: imassc.song4.prism.bn765.com) -> direct
