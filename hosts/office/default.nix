@@ -191,6 +191,8 @@
   # List services that you want to enable:
   # tailscale
   services.tailscale.enable = true;
+  # Peers behind the same symmetric company NAT (e.g. openeruler) can only go direct by reaching UDP 41641 here.
+  services.tailscale.openFirewall = true;
   services.tailscale.extraUpFlags = [
     "--advertise-exit-node"
     "--accept-routes"
