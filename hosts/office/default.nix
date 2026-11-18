@@ -202,6 +202,7 @@
   networking.firewall.allowedTCPPorts = [
     8080
     8081
+    3389 # krdp
   ];
   networking.firewall.allowedUDPPorts = [
     59010

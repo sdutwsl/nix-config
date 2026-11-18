@@ -119,6 +119,21 @@
 
   home.file = {};
 
+  # Headless RDP: KRdp on a KWin virtual output, login with the system account.
+  systemd.user.services.krdp-virtual = {
+    Unit = {
+      Description = "KRdp on a virtual monitor";
+      After = [ "plasma-core.target" "plasma-xdg-desktop-portal-kde.service" ];
+      PartOf = [ "plasma-workspace.target" ];
+    };
+    Service = {
+      ExecStart = "${pkgs.kdePackages.krdp}/bin/krdpserver --plasma --virtual-monitor 1920x1080@1";
+      Restart = "on-failure";
+      RestartSec = 5;
+    };
+    Install.WantedBy = [ "plasma-workspace.target" ];
+  };
+
   programs.fish = {
     enable = true;
     shellAliases = {
