@@ -34,6 +34,8 @@ in
     iperf3
     waypipe
     wl-clipboard
+    wrangler
+    lazygit
   ];
 
   # Socket provided from office (modules/home/services/openeruler-waypipe.nix).
